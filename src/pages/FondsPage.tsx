@@ -85,11 +85,9 @@ function FondsPage() {
 
   return (
     <div className="min-h-screen w-full bg-gray-50 py-10 px-4">
-      <header className="max-w-4xl mx-auto mb-8 bg-[#138735] text-white p-4 rounded-xl shadow">
         <h1 className="text-3xl font-bold text-center">Enregistrer un fonds</h1>
-      </header>
 
-      <main className="flex flex-col md:flex-row gap-10 max-w-6xl mx-auto">
+      <main className="flex flex-col md:flex-row gap-10 max-w-6xl mx-auto mt-20">
         {/* Formulaire */}
         <section className="flex-1 max-w-lg mx-auto md:mx-0">
           <form onSubmit={handleSubmit} noValidate className="bg-white p-6 rounded-2xl shadow-md">

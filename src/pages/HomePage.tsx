@@ -10,6 +10,7 @@ const modules = [
       { href: '/ventes', text: 'Les ventes' },
       { href: '/fonds', text: 'Les fonds' },
       { href: '/acquisitions', text: 'Les acquisitions' },
+      { href: '/sorties', text: 'Les sorties' },
     ],
   },
   {
@@ -18,8 +19,8 @@ const modules = [
     label: 'Consulter',
     links: [
       { href: '/rapport', text: 'Rapports' },
-      { href: '#', text: 'État des fonds' },
-      { href: '#', text: 'Les stocks' },
+      { href: '/etat-des-fonds', text: 'État des fonds' },
+      { href: '/stock', text: 'Les stocks' },
     ],
   },
   {
@@ -32,18 +33,15 @@ const modules = [
       { href: '#', text: 'Les stocks' },
     ],
   },
-  {
-    id: 'gerer-tiers-submenu',
-    icon: 'fas fa-users',
-    label: 'Gérer les tiers',
-    links: [
-      { href: '#', text: 'Associés' },
-      { href: '#', text: 'Employé' },
-      { href: '#', text: 'Fournisseur' },
-      { href: '#', text: 'Client' },
-    ],
-  },
-  {
+{
+  id: 'gerer-tiers',
+  icon: 'fas fa-users',
+  label: 'Gérer les tiers',
+  links: [
+    {  }
+  ],
+},
+{
     id: 'parametres-submenu',
     icon: 'fas fa-cog',
     label: 'Paramètres',

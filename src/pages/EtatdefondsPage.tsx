@@ -1,10 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Chart, registerables } from "chart.js";
-
 
 Chart.register(...registerables);
 
-function RapportPage() {
+function EtatdefondsPage() {
   const [typeRapport, setTypeRapport] = useState("mois");
   const [dateUnique, setDateUnique] = useState("");
   const [dateDebut, setDateDebut] = useState("");
@@ -12,74 +11,61 @@ function RapportPage() {
   const [mois, setMois] = useState("");
   const [annee, setAnnee] = useState("");
   const [aucuneDonnee, setAucuneDonnee] = useState(false);
-  // const [statsData, setStatsData] = useState<number[]>([12, 19, 3, 5, 2, 3]); // Remplace par [] pour tester le message
+
   const chartRef = useRef<HTMLCanvasElement | null>(null);
-  const chartInstance = useRef<Chart | null>(null);
+  const chartInstance = useRef<Chart<"bar", number[], string> | null>(null);
 
-  const showDateSpecifique = typeRapport === "jour";
-  const showPeriodeSpecifique = typeRapport === "periode";
-  const showMensuel = typeRapport === "mois";
-  const showAnnuel = typeRapport === "annee";
+  const genererRapport = () => {
+    let labels: string[] = [];
+    let data: number[] = [];
 
-const genererRapport = () => {
-  let labels: string[] = [];
-  let data: number[] = [];
-
-  if (typeRapport === "jour") {
-    labels = [dateUnique];
-    data = [Math.floor(Math.random() * 100)];
-  } else if (typeRapport === "periode") {
-    const debut = new Date(dateDebut);
-    const fin = new Date(dateFin);
-    const jours = Math.floor((fin.getTime() - debut.getTime()) / (1000 * 3600 * 24)) + 1;
-
-    for (let i = 0; i < jours; i++) {
-      const current = new Date(debut);
-      current.setDate(debut.getDate() + i);
-      labels.push(current.toISOString().split("T")[0]);
-      data.push(Math.floor(Math.random() * 100));
+    if (typeRapport === "jour" && dateUnique) {
+      labels = [dateUnique];
+      data = [Math.floor(Math.random() * 100)];
+    } else if (typeRapport === "periode" && dateDebut && dateFin) {
+      const debut = new Date(dateDebut);
+      const fin = new Date(dateFin);
+      const jours = Math.floor((fin.getTime() - debut.getTime()) / (1000 * 3600 * 24)) + 1;
+      for (let i = 0; i < jours; i++) {
+        const jour = new Date(debut);
+        jour.setDate(debut.getDate() + i);
+        labels.push(jour.toISOString().split("T")[0]);
+        data.push(Math.floor(Math.random() * 100));
+      }
+    } else if (typeRapport === "mois" && mois && annee) {
+      for (let i = 1; i <= 30; i++) {
+        labels.push(`${i}/${mois}/${annee}`);
+        data.push(Math.floor(Math.random() * 100));
+      }
+    } else if (typeRapport === "annee" && annee) {
+      labels = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
+      data = Array.from({ length: 12 }, () => Math.floor(Math.random() * 100));
     }
-  } else if (typeRapport === "mois") {
-    const joursDansMois = 30; // simplification
-    for (let i = 1; i <= joursDansMois; i++) {
-      labels.push(`${i}/${mois}/${annee}`);
-      data.push(Math.floor(Math.random() * 100));
+
+    setAucuneDonnee(data.length === 0);
+
+    if (chartInstance.current) {
+      chartInstance.current.data.labels = labels;
+      chartInstance.current.data.datasets[0].data = data;
+      chartInstance.current.update();
+    } else if (chartRef.current) {
+      chartInstance.current = new Chart(chartRef.current, {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [{
+            label: "Fonds",
+            data,
+            backgroundColor: "rgba(0, 128, 159, 0.7)",
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+        },
+      });
     }
-  } else if (typeRapport === "annee") {
-    labels = [
-      "Jan", "Fév", "Mar", "Avr", "Mai", "Juin",
-      "Juil", "Août", "Sep", "Oct", "Nov", "Déc"
-    ];
-    data = Array.from({ length: 12 }, () => Math.floor(Math.random() * 100));
-  }
-
-// const data = []; // ← simule l’absence de données pour tester
-setAucuneDonnee(data.length === 0);
-
-
-  if (chartInstance.current) {
-    chartInstance.current.data.labels = labels;
-    chartInstance.current.data.datasets[0].data = data;
-    chartInstance.current.update();
-  } else if (chartRef.current) {
-    chartInstance.current = new Chart(chartRef.current, {
-      type: "bar",
-      data: {
-        labels,
-        datasets: [{
-          label: "Ventes",
-          data,
-          backgroundColor: "rgba(0, 128, 159, 0.7)",
-        }],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-      },
-    });
-  }
-};
-
+  };
 
   useEffect(() => {
     return () => {
@@ -89,26 +75,22 @@ setAucuneDonnee(data.length === 0);
     };
   }, []);
 
-
   return (
     <div className="min-h-screen w-full bg-gray-50 py-0 px-0">
       <header className="max-w-6xl mx-auto my-8 bg-[#138735] text-white p-6 rounded-xl shadow-lg">
-        <h1 className="text-3xl font-bold text-center">Rapport des Ventes</h1>
+        <h1 className="text-3xl font-bold text-center">État des Fonds</h1>
       </header>
 
       <main className="max-w-5xl mx-auto px-4 space-y-12 pb-12">
-        <section id="options-rapport" className="bg-white p-6 rounded-2xl shadow-md space-y-6">
+        <section className="bg-white p-6 rounded-2xl shadow-md space-y-6">
           <h2 className="text-2xl font-bold text-[#00866e]">Options du Rapport</h2>
 
           <fieldset className="space-y-4 border border-[#00866e] rounded-md p-4">
             <legend className="text-lg font-semibold text-[#00866e]">Choix du type</legend>
 
             <div>
-              <label htmlFor="type-rapport" className="block text-sm font-medium text-gray-700">
-                Type de Rapport:
-              </label>
+              <label className="block text-sm font-medium text-gray-700">Type de Rapport :</label>
               <select
-                id="type-rapport"
                 value={typeRapport}
                 onChange={(e) => setTypeRapport(e.target.value)}
                 className="mt-1 block w-full rounded-md border-2 border-[#00866e] shadow-sm focus:ring-[#00809f] focus:border-[#00809f]"
@@ -120,14 +102,11 @@ setAucuneDonnee(data.length === 0);
               </select>
             </div>
 
-            {showDateSpecifique && (
+            {typeRapport === "jour" && (
               <div>
-                <label htmlFor="date-unique" className="block text-sm font-medium text-gray-700">
-                  Choisir un Jour:
-                </label>
+                <label className="block text-sm font-medium text-gray-700">Choisir une Date :</label>
                 <input
                   type="date"
-                  id="date-unique"
                   value={dateUnique}
                   onChange={(e) => setDateUnique(e.target.value)}
                   className="mt-1 block w-full rounded-md border-2 border-[#00866e] shadow-sm focus:ring-[#00809f] focus:border-[#00809f]"
@@ -135,27 +114,21 @@ setAucuneDonnee(data.length === 0);
               </div>
             )}
 
-            {showPeriodeSpecifique && (
-              <div className="grid md:grid-cols-2 gap-4">
+            {typeRapport === "periode" && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="date-debut" className="block text-sm font-medium text-gray-700">
-                    Date de Début:
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700">Date Début :</label>
                   <input
                     type="date"
-                    id="date-debut"
                     value={dateDebut}
                     onChange={(e) => setDateDebut(e.target.value)}
                     className="mt-1 block w-full rounded-md border-2 border-[#00866e] shadow-sm focus:ring-[#00809f] focus:border-[#00809f]"
                   />
                 </div>
                 <div>
-                  <label htmlFor="date-fin" className="block text-sm font-medium text-gray-700">
-                    Date de Fin:
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700">Date Fin :</label>
                   <input
                     type="date"
-                    id="date-fin"
                     value={dateFin}
                     onChange={(e) => setDateFin(e.target.value)}
                     className="mt-1 block w-full rounded-md border-2 border-[#00866e] shadow-sm focus:ring-[#00809f] focus:border-[#00809f]"
@@ -164,14 +137,11 @@ setAucuneDonnee(data.length === 0);
               </div>
             )}
 
-            {showMensuel && (
-              <div className="grid md:grid-cols-2 gap-4">
+            {typeRapport === "mois" && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="mois" className="block text-sm font-medium text-gray-700">
-                    Mois:
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700">Mois :</label>
                   <select
-                    id="mois"
                     value={mois}
                     onChange={(e) => setMois(e.target.value)}
                     className="mt-1 block w-full rounded-md border-2 border-[#00866e] shadow-sm focus:ring-[#00809f] focus:border-[#00809f]"
@@ -192,34 +162,28 @@ setAucuneDonnee(data.length === 0);
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="annee-mois" className="block text-sm font-medium text-gray-700">
-                    Année:
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700">Année :</label>
                   <input
                     type="number"
-                    id="annee-mois"
-                    value={annee}
-                    onChange={(e) => setAnnee(e.target.value)}
                     min="2010"
                     max="2100"
+                    value={annee}
+                    onChange={(e) => setAnnee(e.target.value)}
                     className="mt-1 block w-full rounded-md border-2 border-[#00866e] shadow-sm focus:ring-[#00809f] focus:border-[#00809f]"
                   />
                 </div>
               </div>
             )}
 
-            {showAnnuel && (
+            {typeRapport === "annee" && (
               <div>
-                <label htmlFor="annee" className="block text-sm font-medium text-gray-700">
-                  Année:
-                </label>
+                <label className="block text-sm font-medium text-gray-700">Année :</label>
                 <input
                   type="number"
-                  id="annee"
-                  value={annee}
-                  onChange={(e) => setAnnee(e.target.value)}
                   min="2010"
                   max="2100"
+                  value={annee}
+                  onChange={(e) => setAnnee(e.target.value)}
                   className="mt-1 block w-full rounded-md border-2 border-[#00866e] shadow-sm focus:ring-[#00809f] focus:border-[#00809f]"
                 />
               </div>
@@ -243,12 +207,9 @@ setAucuneDonnee(data.length === 0);
           </button>
         </div>
 
-        <section
-          id="statistiques-ventes"
-          className="mt-12"
-        >
+        <section className="mt-12">
           <div className="max-w-4xl mx-auto bg-[#138735] text-white p-4 rounded-xl shadow overflow-x-auto">
-            <h2 className="text-3xl font-bold text-center mb-6">Statistiques des Ventes</h2>
+            <h2 className="text-3xl font-bold text-center mb-6">Statistiques des Fonds</h2>
             <div className="w-full flex justify-center">
               {aucuneDonnee ? (
                 <div className="text-center text-lg text-white font-semibold py-20">
@@ -265,4 +226,4 @@ setAucuneDonnee(data.length === 0);
   );
 }
 
-export default RapportPage;
+export default EtatdefondsPage;

@@ -11,6 +11,9 @@ import  VentesPage  from "./pages/VentesPage";
 import FondsPage from "./pages/FondsPage";
 import AcquisitionsPage from "./pages/AcquisitionsPage";
 import RapportPage from "./pages/RapportPage";
+import EtatdefondsPage from "./pages/EtatdefondsPage";
+import StockPage from "./pages/Stockpage";
+import SortiePage from "./pages/SortiePage";
 
 export default function App() {
   return (
@@ -21,7 +24,7 @@ export default function App() {
           <Route path="/connexion" element={<ConnexionPage />} />
           <Route path="/form" element={<FormPage/>}/>
           <Route path="*" element={<h1>Page not found</h1>} />
-           <Route path="/inscription" element={<InscriptionPage />} />
+          <Route path="/inscription" element={<InscriptionPage />} />
           <Route path="/passe" element={<ForgotPage />} />  
           <Route path="/reinitialise" element={<OtpVerificationPage/>}  />
           <Route path="/verifie" element={<ResetPasswordPage />} />
@@ -29,6 +32,9 @@ export default function App() {
           <Route path="/fonds" element={<FondsPage />} />
           <Route path="/acquisitions" element={<AcquisitionsPage />} />
           <Route path="/rapport" element={<RapportPage />} />
+          <Route path="/etat-des-fonds" element={<EtatdefondsPage />} />
+          <Route path="/stock" element={<StockPage />} />
+          <Route path="/sorties" element={<SortiePage />} />
         </Routes>
    </BrowserRouter>
     </div>

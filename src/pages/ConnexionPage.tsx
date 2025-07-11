@@ -1,94 +1,366 @@
-import  { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import axios from 'axios';
+
+// Configuration d'axios
+const api = axios.create({
+  baseURL: 'http://localhost:3001/api', // Ajustez selon votre API
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Types pour les erreurs et réponses
+interface LoginError {
+  message: string;
+  code?: string;
+  field?: string;
+}
+
+interface LoginResponse {
+  success: boolean;
+  token?: string;
+  user?: {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+  };
+  message?: string;
+}
 
 const ConnexionPage = () => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<LoginError | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{[key: string]: string}>({});
+  const [rememberMe, setRememberMe] = useState(false);
+  
+  const navigate = useNavigate();
 
-  const handleSubmit = async (e: { preventDefault: () => void; }) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: value
+    });
+    
+    // Effacer les erreurs quand l'utilisateur tape
+    if (fieldErrors[name]) {
+      setFieldErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
+    }
+    if (error) {
+      setError(null);
+    }
+  };
+
+  const validateForm = () => {
+    const errors: {[key: string]: string} = {};
+    
+    if (!formData.email) {
+      errors.email = 'L\'email est requis';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      errors.email = 'Format d\'email invalide';
+    }
+    
+    if (!formData.password) {
+      errors.password = 'Le mot de passe est requis';
+    } else if (formData.password.length < 6) {
+      errors.password = 'Le mot de passe doit contenir au moins 6 caractères';
+    }
+    
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
 
     try {
-      const response = await fetch('http://localhost:8000/login/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, password }),
+      const response = await api.post<LoginResponse>('/auth/login', {
+        email: formData.email,
+        password: formData.password,
+        rememberMe: rememberMe,
       });
 
-      const data = await response.json();
+      const { data } = response;
 
-      if (response.ok) {
-        // ✅ Connexion réussie — à adapter selon ton système d'authentification
-        console.log('Connexion réussie :', data);
-        localStorage.setItem('token', data.token); // si tu reçois un JWT
-        window.location.href = '/dashboard'; // ou toute autre page
+      if (data.success && data.token) {
+        // Stocker le token dans le localStorage ou sessionStorage selon rememberMe
+        const storage = rememberMe ? localStorage : sessionStorage;
+        storage.setItem('authToken', data.token);
+        
+        // Stocker les infos utilisateur
+        if (data.user) {
+          storage.setItem('user', JSON.stringify(data.user));
+        }
+
+        // Configurer le header d'autorisation pour les prochaines requêtes
+        api.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+
+        // Rediriger vers le dashboard ou la page d'accueil
+        navigate('/dashboard', { replace: true });
       } else {
-        setErrorMessage(data.detail || 'Identifiants incorrects.');
+        setError({
+          message: data.message || 'Échec de la connexion',
+          code: 'LOGIN_FAILED'
+        });
       }
-    } catch (error) {
-      console.error('Erreur lors de la connexion :', error);
-      setErrorMessage('Erreur réseau. Veuillez réessayer.');
+
+    } catch (err) {
+      console.error('Erreur de connexion:', err);
+      
+      if (axios.isAxiosError(err)) {
+        if (err.response) {
+          // Erreurs du serveur (4xx, 5xx)
+          const status = err.response.status;
+          const errorData = err.response.data;
+          
+          switch (status) {
+            case 400:
+              setError({
+                message: errorData.message || 'Données invalides',
+                code: 'INVALID_DATA'
+              });
+              // Gérer les erreurs de validation spécifiques aux champs
+              if (errorData.errors) {
+                setFieldErrors(errorData.errors);
+              }
+              break;
+              
+            case 401:
+              setError({
+                message: 'Email ou mot de passe incorrect',
+                code: 'INVALID_CREDENTIALS'
+              });
+              break;
+              
+            case 403:
+              setError({
+                message: 'Compte suspendu ou accès refusé',
+                code: 'ACCOUNT_SUSPENDED'
+              });
+              break;
+              
+            case 404:
+              setError({
+                message: 'Aucun compte trouvé avec cet email',
+                code: 'USER_NOT_FOUND'
+              });
+              break;
+              
+            case 429:
+              setError({
+                message: 'Trop de tentatives. Veuillez réessayer plus tard',
+                code: 'TOO_MANY_REQUESTS'
+              });
+              break;
+              
+            case 423:
+              setError({
+                message: 'Compte verrouillé. Contactez le support',
+                code: 'ACCOUNT_LOCKED'
+              });
+              break;
+              
+            case 500:
+              setError({
+                message: 'Erreur serveur. Veuillez réessayer plus tard',
+                code: 'SERVER_ERROR'
+              });
+              break;
+              
+            case 502:
+            case 503:
+            case 504:
+              setError({
+                message: 'Service temporairement indisponible',
+                code: 'SERVICE_UNAVAILABLE'
+              });
+              break;
+              
+            default:
+              setError({
+                message: errorData.message || 'Une erreur inattendue s\'est produite',
+                code: 'UNKNOWN_ERROR'
+              });
+          }
+        } else if (err.request) {
+          // Erreur réseau
+          setError({
+            message: 'Impossible de se connecter au serveur. Vérifiez votre connexion internet',
+            code: 'NETWORK_ERROR'
+          });
+        } else {
+          // Erreur dans la configuration de la requête
+          setError({
+            message: 'Erreur de configuration. Veuillez réessayer',
+            code: 'CONFIG_ERROR'
+          });
+        }
+      } else {
+        // Erreur non-axios
+        setError({
+          message: 'Une erreur inattendue s\'est produite',
+          code: 'UNEXPECTED_ERROR'
+        });
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen  w-full flex items-center justify-center bg-gray-100">
-      <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
-        <div className="text-center mb-6">
-          <img
-            src="../assets/k2n_Group0_Profile.png"
-            alt="Logo de l'application"
-            className="mx-auto w-24 h-24 mb-4"
-          />
-          <h1 className="text-2xl font-bold">Bienvenue</h1>
-          <p className="text-gray-500">Connectez-vous pour continuer</p>
+    <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Connexion à votre compte
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Ou{' '}
+            <Link to="/inscription" className="font-medium text-blue-600 hover:text-blue-500">
+              créez un nouveau compte
+            </Link>
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4 flex items-center border rounded-md px-3 py-2 shadow-sm">
-            <i className="fas fa-user text-gray-400 mr-2" />
-            <input
-              type="text"
-              placeholder="Nom d'utilisateur"
-              className="flex-1 outline-none"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-            />
+        {/* Affichage des erreurs */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start space-x-3">
+            <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm text-red-800 font-medium">
+                {error.message}
+              </p>
+              {error.code && (
+                <p className="text-xs text-red-600 mt-1">
+                  Code: {error.code}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                Email
+              </label>
+              <div className="mt-1 relative">
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  required
+                  className={`appearance-none relative block w-full px-3 py-2 pl-10 border ${
+                    fieldErrors.email ? 'border-red-300' : 'border-gray-300'
+                  } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm`}
+                  placeholder="votre@email.com"
+                  value={formData.email}
+                  onChange={handleChange}
+                  disabled={isLoading}
+                />
+                <Mail className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+              </div>
+              {fieldErrors.email && (
+                <p className="mt-1 text-sm text-red-600">{fieldErrors.email}</p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                Mot de passe
+              </label>
+              <div className="mt-1 relative">
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  className={`appearance-none relative block w-full px-3 py-2 pl-10 pr-10 border ${
+                    fieldErrors.password ? 'border-red-300' : 'border-gray-300'
+                  } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm`}
+                  placeholder="••••••••"
+                  value={formData.password}
+                  onChange={handleChange}
+                  disabled={isLoading}
+                />
+                <Lock className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+                <button
+                  type="button"
+                  className="absolute right-3 top-2.5 h-5 w-5 text-gray-400 hover:text-gray-600"
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={isLoading}
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+              {fieldErrors.password && (
+                <p className="mt-1 text-sm text-red-600">{fieldErrors.password}</p>
+              )}
+            </div>
           </div>
 
-          <div className="mb-4 flex items-center border rounded-md px-3 py-2 shadow-sm">
-            <i className="fas fa-lock text-gray-400 mr-2" />
-            <input
-              type="password"
-              placeholder="Mot de passe"
-              className="flex-1 outline-none"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <input
+                id="remember-me"
+                name="remember-me"
+                type="checkbox"
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                disabled={isLoading}
+              />
+              <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
+                Se souvenir de moi
+              </label>
+            </div>
+
+            <div className="text-sm">
+              <Link to="/passe" className="font-medium text-blue-600 hover:text-blue-500">
+                Mot de passe oublié ?
+              </Link>
+            </div>
           </div>
 
-          <Link to="/"><button
-            type="submit"
-            className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition"
-          >
-            Se connecter
-          </button></Link>
-
-          <div className="flex flex-col items-center mt-4 text-sm text-gray-600">
-            <a href="/passe" className="text-blue-500 hover:underline">Mot de passe oublié ?</a>
-            <span>
-              Nouveau ici ? <a href="/inscription" className="text-blue-500 hover:underline">Créer un compte</a>
-            </span>
+          <div>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isLoading ? (
+                <div className="flex items-center">
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Connexion...
+                </div>
+              ) : (
+                'Se connecter'
+              )}
+            </button>
           </div>
-
-          {errorMessage && (
-            <p className="text-red-600 text-center mt-3">{errorMessage}</p>
-          )}
         </form>
       </div>
     </div>

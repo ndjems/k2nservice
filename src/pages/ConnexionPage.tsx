@@ -115,7 +115,7 @@ const ConnexionPage = () => {
         api.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
 
         // Rediriger vers le dashboard ou la page d'accueil
-        navigate('/dashboard', { replace: true });
+        navigate('/', { replace: true });
       } else {
         setError({
           message: data.message || 'Échec de la connexion',

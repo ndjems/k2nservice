@@ -2,10 +2,11 @@
 
 from fastapi import FastAPI, HTTPException, status, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional, List
 from datetime import datetime
-import uuid # Pour générer des UUIDs
+import uuid
+import json
 
 # --- Imports pour SQLAlchemy (Base de données) ---
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime
@@ -21,7 +22,7 @@ app = FastAPI(
 
 # Configuration CORS (Cross-Origin Resource Sharing)
 origins = [
-    "http://localhost:5173",  # L'URL de votre frontend React/Vite
+    "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
 
@@ -34,9 +35,7 @@ app.add_middleware(
 )
 
 # --- Configuration de la Base de Données SQLite ---
-DATABASE_URL = "sqlite:///./k2n_local.db" # Crée un fichier k2n_local.db dans le dossier du backend
-
-# connect_args={"check_same_thread": False} est nécessaire pour SQLite avec FastAPI
+DATABASE_URL = "sqlite:///./k2n_local.db"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -63,12 +62,32 @@ class Sale(Base):
     montant_recu = Column(Float, nullable=False)
     mode_paiement = Column(Integer, nullable=False)
     frais = Column(Float, nullable=True)
-    poids = Column(Float, nullable=False) # Nouveau champ 'poids'
+    poids = Column(Float, nullable=False)
     
     sale_date = Column(DateTime, default=datetime.utcnow)
     last_modified_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-# Créer les tables dans la base de données locale (si elles n'existent pas)
+class Acquisition(Base):
+    """Nouveau modèle SQLAlchemy pour la table 'acquisitions' dans la DB locale."""
+    __tablename__ = "acquisitions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
+    responsable_acquisition = Column(String, nullable=False) # Nouveau champ
+    nature_acquisition = Column(String, nullable=False)
+    quantite_acquise = Column(Float, nullable=False) # Reste Float pour la quantité (ex: 1.5 kg)
+    prix_unitaire = Column(Integer, nullable=False) # Changé de Float à Integer
+    frais_acquisition = Column(Integer, nullable=False) # Changé de Float à Integer
+    frais_connexes = Column(Integer, nullable=False) # Changé de Float à Integer
+    total_frais = Column(Integer, nullable=False) # Changé de Float à Integer
+    type_acquisition = Column(String, nullable=False)
+    date_acquisition = Column(DateTime, nullable=False)
+    # Stocke les tranches comme une chaîne JSON (liste d'objets {date, montant})
+    dates_acquisition_tranches = Column(String, nullable=True) 
+    details = Column(String, nullable=True)
+    commentaires = Column(String, nullable=True)
+    last_modified_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+# Créer toutes les tables dans la base de données locale (si elles n'existent pas)
 def create_db_tables():
     Base.metadata.create_all(bind=engine)
 
@@ -89,8 +108,12 @@ class ErrorResponse(BaseModel):
     code: str
     field: Optional[str] = None
 
+# Pydantic Model pour les tranches d'acquisition
+class TrancheData(BaseModel):
+    date: str
+    montant: int # Changé de float à int
+
 class SaleCreate(BaseModel):
-    """Modèle Pydantic pour la création d'une vente (données entrantes du frontend)."""
     responsable: str
     livreur: Optional[str] = None
     quantite: int
@@ -98,11 +121,10 @@ class SaleCreate(BaseModel):
     montantRecu: float
     modePaiement: int
     frais: Optional[float] = None
-    poids: float # Nouveau champ 'poids'
+    poids: float
     dateVente: str
 
 class SaleResponse(BaseModel):
-    """Modèle Pydantic pour la réponse d'une vente (données sortantes)."""
     id: uuid.UUID
     responsable: str
     livreur: Optional[str]
@@ -111,9 +133,50 @@ class SaleResponse(BaseModel):
     montantRecu: float = Field(alias="montant_recu")
     modePaiement: int = Field(alias="mode_paiement")
     frais: Optional[float]
-    poids: float # Nouveau champ 'poids'
+    poids: float
     sale_date: datetime
     last_modified_at: datetime
+
+    class Config:
+        from_attributes = True
+        populate_by_name = True
+
+class AcquisitionCreate(BaseModel):
+    """Modèle Pydantic pour la création d'une acquisition (données entrantes du frontend)."""
+    responsableAcquisition: str # Nouveau champ
+    natureAcquisition: str
+    quantiteAcquise: float
+    prixUnitaire: int # Changé de float à int
+    fraisConnexes: int # Changé de float à int
+    typeAcquisition: str
+    dateAcquisition: str
+    datesAcquisitionTranches: Optional[List[TrancheData]] = None
+    details: Optional[str] = None
+    commentaires: Optional[str] = None
+
+class AcquisitionResponse(BaseModel):
+    """Modèle Pydantic pour la réponse d'une acquisition (données sortantes)."""
+    id: uuid.UUID
+    responsableAcquisition: str = Field(alias="responsable_acquisition") # Nouveau champ
+    natureAcquisition: str = Field(alias="nature_acquisition")
+    quantiteAcquise: float = Field(alias="quantite_acquise")
+    prixUnitaire: int = Field(alias="prix_unitaire") # Changé de float à int
+    fraisAcquisition: int = Field(alias="frais_acquisition") # Changé de float à int
+    fraisConnexes: int = Field(alias="frais_connexes") # Changé de float à int
+    totalFrais: int = Field(alias="total_frais") # Changé de float à int
+    typeAcquisition: str = Field(alias="type_acquisition")
+    dateAcquisition: datetime = Field(alias="date_acquisition")
+    datesAcquisitionTranches: Optional[List[TrancheData]] = Field(alias="dates_acquisition_tranches")
+    details: Optional[str]
+    commentaires: Optional[str]
+    last_modified_at: datetime
+
+    @field_validator('datesAcquisitionTranches', mode='before')
+    @classmethod
+    def parse_tranches_from_json(cls, v):
+        if isinstance(v, str) and v:
+            return json.loads(v)
+        return v
 
     class Config:
         from_attributes = True
@@ -183,7 +246,7 @@ async def create_sale(sale: SaleCreate, db: Session = Depends(get_db)):
         montant_recu=sale.montantRecu,
         mode_paiement=sale.modePaiement,
         frais=sale.frais,
-        poids=sale.poids, # Ajout du champ poids
+        poids=sale.poids,
         sale_date=sale_date_dt,
     )
     db.add(db_sale)
@@ -198,3 +261,51 @@ async def get_all_sales(db: Session = Depends(get_db)):
     """
     sales = db.query(Sale).all()
     return sales
+
+# --- Nouvelles Routes pour la gestion des acquisitions ---
+@app.post("/api/acquisitions", response_model=AcquisitionResponse, status_code=status.HTTP_201_CREATED)
+async def create_acquisition(acquisition: AcquisitionCreate, db: Session = Depends(get_db)):
+    """
+    Crée une nouvelle acquisition dans la base de données locale (SQLite).
+    """
+    # Calcul des frais d'acquisition et du total des frais
+    # Assurez-vous que les calculs utilisent des entiers si les prix sont des entiers
+    frais_acquisition_calculated = int(acquisition.quantiteAcquise * acquisition.prixUnitaire) # Convertir en int
+    total_frais_calculated = frais_acquisition_calculated + acquisition.fraisConnexes # Utilise fraisConnexes
+
+    # Convertir la date d'acquisition du format string (YYYY-MM-DD) en objet datetime
+    date_acquisition_dt = datetime.strptime(acquisition.dateAcquisition, '%Y-%m-%d')
+
+    # Sérialiser datesAcquisitionTranches en JSON string si non nul
+    dates_tranches_json = None
+    if acquisition.datesAcquisitionTranches:
+        # Assurez-vous que les montants des tranches sont des entiers avant de sérialiser
+        dates_tranches_json = json.dumps([t.model_dump() for t in acquisition.datesAcquisitionTranches])
+
+    db_acquisition = Acquisition(
+        responsable_acquisition=acquisition.responsableAcquisition, # Nouveau champ
+        nature_acquisition=acquisition.natureAcquisition,
+        quantite_acquise=acquisition.quantiteAcquise,
+        prix_unitaire=acquisition.prixUnitaire,
+        frais_acquisition=frais_acquisition_calculated,
+        frais_connexes=acquisition.fraisConnexes,
+        total_frais=total_frais_calculated,
+        type_acquisition=acquisition.typeAcquisition,
+        date_acquisition=date_acquisition_dt,
+        dates_acquisition_tranches=dates_tranches_json, # Stocke la chaîne JSON
+        details=acquisition.details,
+        commentaires=acquisition.commentaires,
+    )
+    db.add(db_acquisition)
+    db.commit()
+    db.refresh(db_acquisition)
+    return db_acquisition
+
+@app.get("/api/acquisitions", response_model=List[AcquisitionResponse])
+async def get_all_acquisitions(db: Session = Depends(get_db)):
+    """
+    Récupère toutes les acquisitions de la base de données locale (SQLite).
+    """
+    acquisitions = db.query(Acquisition).all()
+    # Le validateur de champ dans AcquisitionResponse gérera la désérialisation de dates_acquisition_tranches
+    return acquisitions

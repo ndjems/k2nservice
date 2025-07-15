@@ -1,4 +1,3 @@
-
 import Menu from '../components/Menu'; //
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -31,18 +30,18 @@ const Navbar = () => {
 
 
     return (
-    <nav className="w-64 bg-gray-100 border-r">
-      <ul className="space-y-4 p-4">
+    <nav className="w-32 bg-gray-100 border-r">
+      <ul className="space-y-3 p-3">
         {Menu.map((mod) => (
           <li key={mod.id}>
             <div
-              className={`cursor-pointer flex items-center space-x-2 p-2 rounded hover:bg-blue-200 ${
+              className={`cursor-pointer flex items-center space-x-3 p-3 rounded hover:bg-blue-200 text-base ${
                 activeSubmenu === mod.id ? 'bg-blue-300' : ''
               }`}
               onClick={() => toggleSubmenu(mod.id)}
             >
-              <i className={`${mod.icon} fa-2x`} />
-              <span>{mod.label}</span>
+              <i className={`${mod.icon} fa-lg`} />
+              <span className="text-xs">{mod.label}</span>
             </div>
             {activeSubmenu === mod.id && (
               <ul className="ml-6 mt-2 space-y-1">
@@ -74,4 +73,4 @@ const Navbar = () => {
 );
     };
 
-export default Navbar
+export default Navbar;

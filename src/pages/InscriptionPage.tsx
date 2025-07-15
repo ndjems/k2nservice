@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import logo from "../scr/assets/k2n.png";
+
 
 export const InscriptionPage = () => {
   const [username, setUsername] = useState('');

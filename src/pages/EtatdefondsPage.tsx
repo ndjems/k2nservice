@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Chart, registerables } from "chart.js";
+import DashboardPage from "./DashboardPage";
 
 Chart.register(...registerables);
 
@@ -76,91 +77,108 @@ function EtatdefondsPage() {
   }, []);
 
   return (
-    <div className="min-h-screen w-full bg-gray-50 py-0 px-0">
-      <header className="max-w-6xl mx-auto my-8 bg-[#138735] text-white p-6 rounded-xl shadow-lg">
-        <h1 className="text-3xl font-bold text-center">État des Fonds</h1>
-      </header>
+    <>
+      <DashboardPage />
+      <div className="min-h-screen w-full bg-gray-50 py-0 px-0">
+        <header className="max-w-6xl mx-auto my-8 bg-[#138735] text-white p-6 rounded-xl shadow-lg">
+          <h1 className="text-3xl font-bold text-center">État des Fonds</h1>
+        </header>
 
-      <main className="max-w-5xl mx-auto px-4 space-y-12 pb-12">
-        <section className="bg-white p-6 rounded-2xl shadow-md space-y-6">
-          <h2 className="text-2xl font-bold text-[#00866e]">Options du Rapport</h2>
+        <main className="max-w-5xl mx-auto px-4 space-y-12 pb-12">
+          <section className="bg-white p-6 rounded-2xl shadow-md space-y-6">
+            <h2 className="text-2xl font-bold text-[#00866e]">Options du Rapport</h2>
 
-          <fieldset className="space-y-4 border border-[#00866e] rounded-md p-4">
-            <legend className="text-lg font-semibold text-[#00866e]">Choix du type</legend>
+            <fieldset className="space-y-4 border border-[#00866e] rounded-md p-4">
+              <legend className="text-lg font-semibold text-[#00866e]">Choix du type</legend>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Type de Rapport :</label>
-              <select
-                value={typeRapport}
-                onChange={(e) => setTypeRapport(e.target.value)}
-                className="mt-1 block w-full rounded-md border-2 border-[#00866e] shadow-sm focus:ring-[#00809f] focus:border-[#00809f]"
-              >
-                <option value="jour">Jour Spécifique</option>
-                <option value="periode">Période Spécifique</option>
-                <option value="mois">Mensuel</option>
-                <option value="annee">Annuel</option>
-              </select>
-            </div>
-
-            {typeRapport === "jour" && (
               <div>
-                <label className="block text-sm font-medium text-gray-700">Choisir une Date :</label>
-                <input
-                  type="date"
-                  value={dateUnique}
-                  onChange={(e) => setDateUnique(e.target.value)}
+                <label className="block text-sm font-medium text-gray-700">Type de Rapport :</label>
+                <select
+                  value={typeRapport}
+                  onChange={(e) => setTypeRapport(e.target.value)}
                   className="mt-1 block w-full rounded-md border-2 border-[#00866e] shadow-sm focus:ring-[#00809f] focus:border-[#00809f]"
-                />
+                >
+                  <option value="jour">Jour Spécifique</option>
+                  <option value="periode">Période Spécifique</option>
+                  <option value="mois">Mensuel</option>
+                  <option value="annee">Annuel</option>
+                </select>
               </div>
-            )}
 
-            {typeRapport === "periode" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {typeRapport === "jour" && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Date Début :</label>
+                  <label className="block text-sm font-medium text-gray-700">Choisir une Date :</label>
                   <input
                     type="date"
-                    value={dateDebut}
-                    onChange={(e) => setDateDebut(e.target.value)}
+                    value={dateUnique}
+                    onChange={(e) => setDateUnique(e.target.value)}
                     className="mt-1 block w-full rounded-md border-2 border-[#00866e] shadow-sm focus:ring-[#00809f] focus:border-[#00809f]"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Date Fin :</label>
-                  <input
-                    type="date"
-                    value={dateFin}
-                    onChange={(e) => setDateFin(e.target.value)}
-                    className="mt-1 block w-full rounded-md border-2 border-[#00866e] shadow-sm focus:ring-[#00809f] focus:border-[#00809f]"
-                  />
-                </div>
-              </div>
-            )}
+              )}
 
-            {typeRapport === "mois" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Mois :</label>
-                  <select
-                    value={mois}
-                    onChange={(e) => setMois(e.target.value)}
-                    className="mt-1 block w-full rounded-md border-2 border-[#00866e] shadow-sm focus:ring-[#00809f] focus:border-[#00809f]"
-                  >
-                    <option value="">Sélectionner un mois</option>
-                    <option value="01">Janvier</option>
-                    <option value="02">Février</option>
-                    <option value="03">Mars</option>
-                    <option value="04">Avril</option>
-                    <option value="05">Mai</option>
-                    <option value="06">Juin</option>
-                    <option value="07">Juillet</option>
-                    <option value="08">Août</option>
-                    <option value="09">Septembre</option>
-                    <option value="10">Octobre</option>
-                    <option value="11">Novembre</option>
-                    <option value="12">Décembre</option>
-                  </select>
+              {typeRapport === "periode" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Date Début :</label>
+                    <input
+                      type="date"
+                      value={dateDebut}
+                      onChange={(e) => setDateDebut(e.target.value)}
+                      className="mt-1 block w-full rounded-md border-2 border-[#00866e] shadow-sm focus:ring-[#00809f] focus:border-[#00809f]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Date Fin :</label>
+                    <input
+                      type="date"
+                      value={dateFin}
+                      onChange={(e) => setDateFin(e.target.value)}
+                      className="mt-1 block w-full rounded-md border-2 border-[#00866e] shadow-sm focus:ring-[#00809f] focus:border-[#00809f]"
+                    />
+                  </div>
                 </div>
+              )}
+
+              {typeRapport === "mois" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Mois :</label>
+                    <select
+                      value={mois}
+                      onChange={(e) => setMois(e.target.value)}
+                      className="mt-1 block w-full rounded-md border-2 border-[#00866e] shadow-sm focus:ring-[#00809f] focus:border-[#00809f]"
+                    >
+                      <option value="">Sélectionner un mois</option>
+                      <option value="01">Janvier</option>
+                      <option value="02">Février</option>
+                      <option value="03">Mars</option>
+                      <option value="04">Avril</option>
+                      <option value="05">Mai</option>
+                      <option value="06">Juin</option>
+                      <option value="07">Juillet</option>
+                      <option value="08">Août</option>
+                      <option value="09">Septembre</option>
+                      <option value="10">Octobre</option>
+                      <option value="11">Novembre</option>
+                      <option value="12">Décembre</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Année :</label>
+                    <input
+                      type="number"
+                      min="2010"
+                      max="2100"
+                      value={annee}
+                      onChange={(e) => setAnnee(e.target.value)}
+                      className="mt-1 block w-full rounded-md border-2 border-[#00866e] shadow-sm focus:ring-[#00809f] focus:border-[#00809f]"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {typeRapport === "annee" && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Année :</label>
                   <input
@@ -172,57 +190,43 @@ function EtatdefondsPage() {
                     className="mt-1 block w-full rounded-md border-2 border-[#00866e] shadow-sm focus:ring-[#00809f] focus:border-[#00809f]"
                   />
                 </div>
-              </div>
-            )}
-
-            {typeRapport === "annee" && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Année :</label>
-                <input
-                  type="number"
-                  min="2010"
-                  max="2100"
-                  value={annee}
-                  onChange={(e) => setAnnee(e.target.value)}
-                  className="mt-1 block w-full rounded-md border-2 border-[#00866e] shadow-sm focus:ring-[#00809f] focus:border-[#00809f]"
-                />
-              </div>
-            )}
-          </fieldset>
-        </section>
-
-        <div className="flex justify-between">
-          <button
-            type="button"
-            onClick={() => window.history.back()}
-            className="bg-gray-300 hover:bg-[#00809f] text-black font-semibold py-2 px-4 rounded-lg transition"
-          >
-            Retour
-          </button>
-          <button
-            onClick={genererRapport}
-            className="bg-[#00866e] hover:bg-gray-400 text-white font-semibold py-2 px-4 rounded-lg transition"
-          >
-            Générer le Rapport
-          </button>
-        </div>
-
-        <section className="mt-12">
-          <div className="max-w-4xl mx-auto bg-[#138735] text-white p-4 rounded-xl shadow overflow-x-auto">
-            <h2 className="text-3xl font-bold text-center mb-6">Statistiques des Fonds</h2>
-            <div className="w-full flex justify-center">
-              {aucuneDonnee ? (
-                <div className="text-center text-lg text-white font-semibold py-20">
-                  Aucune donnée disponible pour cette période.
-                </div>
-              ) : (
-                <canvas ref={chartRef} className="w-full max-w-3xl h-96 bg-white rounded-lg shadow-md" />
               )}
-            </div>
+            </fieldset>
+          </section>
+
+          <div className="flex justify-between">
+            <button
+              type="button"
+              onClick={() => window.history.back()}
+              className="bg-gray-300 hover:bg-[#00809f] text-black font-semibold py-2 px-4 rounded-lg transition"
+            >
+              Retour
+            </button>
+            <button
+              onClick={genererRapport}
+              className="bg-[#00866e] hover:bg-gray-400 text-white font-semibold py-2 px-4 rounded-lg transition"
+            >
+              Générer le Rapport
+            </button>
           </div>
-        </section>
-      </main>
-    </div>
+
+          <section className="mt-12">
+            <div className="max-w-4xl mx-auto bg-[#138735] text-white p-4 rounded-xl shadow overflow-x-auto">
+              <h2 className="text-3xl font-bold text-center mb-6">Statistiques des Fonds</h2>
+              <div className="w-full flex justify-center">
+                {aucuneDonnee ? (
+                  <div className="text-center text-lg text-white font-semibold py-20">
+                    Aucune donnée disponible pour cette période.
+                  </div>
+                ) : (
+                  <canvas ref={chartRef} className="w-full max-w-3xl h-96 bg-white rounded-lg shadow-md" />
+                )}
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </>
   );
 }
 

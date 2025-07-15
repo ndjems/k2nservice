@@ -1,3 +1,22 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+html, body, #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    /* overflow: hidden;  Permet le scroll global */
+  }
+  
+  .app-container, .MainLayout, .sidebar, .content {
+    height: 100%;
+    box-sizing: border-box;
+    overflow: auto; /* Permet un scroll interne si VRAIMENT nécessaire, sinon retire-le */
+  }
+  .app-container {
+    display: flex;
+    flex-direction: row; /* ou column selon ton design */
+    height: 100vh;
+    width: 100vw;
+  }

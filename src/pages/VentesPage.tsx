@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import Sidebar from '../components/Sidebar';
+
 
 type Vente = {
   responsable: string;
@@ -22,7 +24,13 @@ type FormData = {
   dateVente: string;
 };
 
+const ventesParPage = 7;
+
 const VentesPage = () => {
+  const [expanded, setExpanded] = useState(true);
+
+  const [pageCourante, setPageCourante] = useState(1);
+  const [ventes, setVentes] = useState<Vente[]>([]);
   const [formData, setFormData] = useState<FormData>({
     responsable: '',
     livreur: '',
@@ -34,7 +42,7 @@ const VentesPage = () => {
     dateVente: '',
   });
 
-  const [ventes, setVentes] = useState<Vente[]>([]);
+
   const [showFrais, setShowFrais] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -53,38 +61,67 @@ const VentesPage = () => {
     setShowFrais(value === 'orange-money' || value === 'mobile-money');
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const [formError, setFormError] = useState("");
 
-    // Conversion des champs numériques en nombres
-    const nouvelleVente: Vente = {
-      responsable: formData.responsable,
-      livreur: formData.livreur,
-      quantite: formData.quantite,
-      montantNet: formData.montantNet,
-      montantRecu: formData.montantRecu,
-      modePaiement: formData.modePaiement,
-      frais: formData.frais,
-      dateVente: formData.dateVente,
-    };
+const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  e.preventDefault();
 
-    const nouvellesVentes = [...ventes, nouvelleVente].sort((a, b) =>
-      b.dateVente.localeCompare(a.dateVente)
-    );
-    setVentes(nouvellesVentes);
+  // Validation stricte : tous les champs obligatoires et nombres entiers
+  if (
+    !formData.responsable.trim() ||
+    !formData.livreur.trim() ||
+    formData.quantite === "" ||
+    formData.montantNet === "" ||
+    formData.montantRecu === "" ||
+    formData.modePaiement === 0 ||
+    formData.frais === "" ||
+    !formData.dateVente
+  ) {
+    setFormError("Tous les champs sont obligatoires.");
+    return;
+  }
 
-    setFormData({
-      responsable: '',
-      livreur: '',
-      quantite: 0,
-      montantNet: 0,
-      montantRecu: 0,
-      modePaiement: 0,
-      frais: 0,
-      dateVente: '',
-    });
-    setShowFrais(false);
+  // Vérifie que les champs numériques sont des entiers strictement positifs
+  if (
+    !Number.isInteger(Number(formData.quantite)) || Number(formData.quantite) <= 0 ||
+    !Number.isInteger(Number(formData.montantNet)) || Number(formData.montantNet) <= 0 ||
+    !Number.isInteger(Number(formData.montantRecu)) || Number(formData.montantRecu) <= 0 ||
+    !Number.isInteger(Number(formData.frais)) || Number(formData.frais) < 0
+  ) {
+    setFormError("Seuls les nombres entiers positifs sont acceptés pour les champs numériques.");
+    return;
+  }
+
+  setFormError("");
+
+  const nouvelleVente: Vente = {
+    responsable: formData.responsable,
+    livreur: formData.livreur,
+    quantite: Number(formData.quantite),
+    montantNet: Number(formData.montantNet),
+    montantRecu: Number(formData.montantRecu),
+    modePaiement: formData.modePaiement,
+    frais: Number(formData.frais),
+    dateVente: formData.dateVente,
   };
+
+  const nouvellesVentes = [...ventes, nouvelleVente].sort((a, b) =>
+    b.dateVente.localeCompare(a.dateVente)
+  );
+  setVentes(nouvellesVentes);
+
+  setFormData({
+    responsable: '',
+    livreur: '',
+    quantite: 0,
+    montantNet: 0,
+    montantRecu: 0,
+    modePaiement: 0,
+    frais: 0,
+    dateVente: '',
+  });
+  setShowFrais(false);
+};
 
   const getModePaiementLabel = (mode: number): string => {
     switch (mode) {
@@ -99,18 +136,23 @@ const VentesPage = () => {
     }
   };
 
-  return (
-    <div className="min-h-screen w-full bg-gray-50 py-10 px-4">
-      <header className="max-w-4xl mx-auto mb-8 bg-[#138735] text-white p-4 rounded-xl shadow">
-        <h1 className="text-3xl font-bold text-center">Enregistrer une Vente</h1>
-      </header>
+  // Pagination logic
+  const totalPages = Math.max(1, Math.ceil(ventes.length / ventesParPage));
+  const startIndex = (pageCourante - 1) * ventesParPage;
+  const endIndex = startIndex + ventesParPage;
+  const currentVentes = ventes.slice(startIndex, endIndex);
 
-      <main className="max-w-6xl mx-auto space-y-12">
-        <section id="enregistrer">
-          <form onSubmit={handleSubmit} className="space-y-6 bg-white p-6 rounded-2xl shadow-md max-w-6xl mx-auto">
-            <div className="flex flex-col md:flex-row gap-6">
+  return (
+    <div className="flex min-h-screen bg-gray-50">
+      <main className="flex-1 p-4 md:p-10 max-w-6xl mx-auto w-full">
+
+        {/* Formulaire toujours en haut */}
+        <section id="enregistrer" className="mb-12">
+          <form onSubmit={handleSubmit} className="space-y-8 bg-white/95 p-10 rounded-3xl shadow-2xl max-w-2xl mx-auto border border-gray-100 flex flex-col gap-6">
+
+            <div className="flex flex-col md:flex-row gap-8">
               <fieldset className="flex-1 space-y-4 border border-[#00866e] rounded-md p-4">
-                <legend className="text-lg font-semibold text-[#00866e]">Acteurs</legend>
+                <legend className="text-lg font-bold text-[#00866e]">Acteurs</legend>
                 <div>
                   <label htmlFor="responsable" className="block text-sm font-medium text-gray-700">
                     Responsable de la vente:
@@ -127,7 +169,7 @@ const VentesPage = () => {
                 </div>
                 <div>
                   <label htmlFor="livreur" className="block text-sm font-medium text-gray-700">
-                    Nom du Livreur (si livraison):
+                    Nom du Livreur (si livraison) :
                   </label>
                   <input
                     type="text"
@@ -141,7 +183,7 @@ const VentesPage = () => {
               </fieldset>
 
               <fieldset className="flex-1 space-y-4 border border-[#00866e] rounded-md p-4">
-                <legend className="text-lg font-semibold text-[#00866e]">Détails de la Vente</legend>
+                <legend className="text-lg font-bold text-[#00866e]">Détails de la Vente</legend>
                 <div className="grid grid-cols-1 gap-6">
                   <div>
                     <label htmlFor="quantite" className="block text-sm font-medium text-gray-700">
@@ -149,19 +191,33 @@ const VentesPage = () => {
                     </label>
                     <input
                       type="number"
-                      inputMode="numeric"
                       min="0"
                       id="quantite"
                       name="quantite"
                       value={formData.quantite}
-                      onChange={handleChange}
+                      onChange={e => {
+                        if (e.target.value === "" || /^\d+$/.test(e.target.value)) {
+                          handleChange(e);
+                        }
+                      }}
+                      onFocus={e => {
+                        if (e.target.value === "0") {
+                          e.target.value = "";
+                          setFormData({ ...formData, quantite: "" });
+                        }
+                      }}
+                      onBlur={e => {
+                        if (e.target.value === "") {
+                          setFormData({ ...formData, quantite: 0 });
+                        }
+                      }}
                       required
                       className="mt-1 block w-full rounded-md border-2 border-[#00866e] shadow-sm focus:ring-[#00809f] focus:border-[#00809f]"
                     />
                   </div>
                   <div>
                     <label htmlFor="montantNet" className="block text-sm font-medium text-gray-700">
-                      Montant Net:
+                      Montant Net :
                     </label>
                     <input
                       type="number"
@@ -172,13 +228,24 @@ const VentesPage = () => {
                       name="montantNet"
                       value={formData.montantNet}
                       onChange={handleChange}
+                      onFocus={e => {
+                        if (e.target.value === "0") {
+                          e.target.value = "";
+                          setFormData({ ...formData, montantNet: "" });
+                        }
+                      }}
+                      onBlur={e => {
+                        if (e.target.value === "") {
+                          setFormData({ ...formData, montantNet: 0 });
+                        }
+                      }}
                       required
                       className="mt-1 block w-full rounded-md border-2 border-[#00866e] shadow-sm focus:ring-[#00809f] focus:border-[#00809f]"
                     />
                   </div>
                   <div>
                     <label htmlFor="montantRecu" className="block text-sm font-medium text-gray-700">
-                      Montant Reçu:
+                      Montant Reçu :
                     </label>
                     <input
                       type="number"
@@ -189,13 +256,24 @@ const VentesPage = () => {
                       name="montantRecu"
                       value={formData.montantRecu}
                       onChange={handleChange}
+                      onFocus={e => {
+                        if (e.target.value === "0") {
+                          e.target.value = "";
+                          setFormData({ ...formData, montantRecu: "" });
+                        }
+                      }}
+                      onBlur={e => {
+                        if (e.target.value === "") {
+                          setFormData({ ...formData, montantRecu: 0 });
+                        }
+                      }}
                       required
                       className="mt-1 block w-full rounded-md border-2 border-[#00866e] shadow-sm focus:ring-[#00809f] focus:border-[#00809f]"
                     />
                   </div>
                   <div>
                     <label htmlFor="modePaiement" className="block text-sm font-medium text-gray-700">
-                      Mode de Paiement:
+                      Mode de Paiement :
                     </label>
                     <select
                       id="modePaiement"
@@ -222,7 +300,7 @@ const VentesPage = () => {
                   {showFrais && (
                     <div>
                       <label htmlFor="frais" className="block text-sm font-medium text-gray-700">
-                        Frais:
+                        Frais :
                       </label>
                       <input
                         type="number"
@@ -233,13 +311,24 @@ const VentesPage = () => {
                         name="frais"
                         value={formData.frais}
                         onChange={handleChange}
+                        onFocus={e => {
+                          if (e.target.value === "0") {
+                            e.target.value = "";
+                            setFormData({ ...formData, frais: "" });
+                          }
+                        }}
+                        onBlur={e => {
+                          if (e.target.value === "") {
+                            setFormData({ ...formData, frais: 0 });
+                          }
+                        }}
                         className="mt-1 block w-full rounded-md border-2 border-[#00866e] shadow-sm focus:ring-[#00809f] focus:border-[#00809f]"
                       />
                     </div>
                   )}
                   <div>
                     <label htmlFor="dateVente" className="block text-sm font-medium text-gray-700">
-                      Date de la Vente:
+                      Date de la Vente :
                     </label>
                     <input
                       type="date"
@@ -254,18 +343,17 @@ const VentesPage = () => {
                 </div>
               </fieldset>
             </div>
-
-            <div className="flex justify-between">
+            <div className="flex justify-between gap-4">
               <button
                 type="button"
                 onClick={() => window.history.back()}
-                className="bg-gray-300 hover:bg-[#00809f] text-black font-semibold py-2 px-4 rounded-lg transition"
+                className="bg-white text-[#00866e] border-2 border-[#00866e] font-semibold py-2 px-4 rounded-lg transition hover:bg-[#00866e] hover:text-white hover:border-[#00866e]"
               >
                 Retour
               </button>
               <button
                 type="submit"
-                className="bg-[#00866e] hover:bg-gray-400 text-white font-semibold py-2 px-4 rounded-lg transition"
+                className="bg-[#00866e] text-white font-semibold py-2 px-4 rounded-lg transition hover:bg-gray-400 hover:text-white hover:border-[#00866e] border-2 border-[#00866e]"
               >
                 Enregistrer la Vente
               </button>
@@ -274,12 +362,24 @@ const VentesPage = () => {
         </section>
 
         <section id="liste-ventes" className="mt-12">
-          <div className="max-w-4xl mx-auto mb-8 bg-[#138735] text-white p-4 rounded-xl shadow">
-            <h2 className="text-3xl font-bold text-center">Liste des Ventes</h2>
-          </div>
-          <div className="overflow-x-auto rounded-lg shadow-md">
+          <div className="max-w-4xl mx-auto mb-8 bg-gradient-to-r from-[#138735] to-[#00b86b] text-white p-6 rounded-2xl shadow-xl flex flex-col items-center gap-3 text-center">
+  <span className="text-3xl"></span>
+  <h2 className="text-3xl font-bold text-center">Liste des Ventes</h2>
+
+</div>
+          <div className="overflow-x-auto rounded-2xl shadow-2xl border border-gray-100">
             <table className="min-w-full divide-y divide-[#00866e] text-sm">
-              <thead className="bg-[#00866e] text-white">
+              <colgroup>
+                <col span="1" className="w-24" />
+                <col span="1" className="w-32" />
+                <col span="1" className="w-16" />
+                <col span="1" className="w-28" />
+                <col span="1" className="w-28" />
+                <col span="1" className="w-32" />
+                <col span="1" className="w-20" />
+                <col span="1" className="w-28" />
+              </colgroup>
+              <thead className="bg-gradient-to-r from-[#00866e] to-[#00b86b] text-white text-base">
                 <tr>
                   <th className="px-4 py-2 text-left">Date</th>
                   <th className="px-4 py-2 text-left">Responsable</th>
@@ -291,7 +391,7 @@ const VentesPage = () => {
                   <th className="px-4 py-2 text-left">Livreur</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white divide-y divide-gray-100">
                 {ventes.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="text-center px-4 py-6 text-gray-500 italic">
@@ -299,15 +399,24 @@ const VentesPage = () => {
                     </td>
                   </tr>
                 ) : (
-                  ventes.map((vente, index) => (
-                    <tr key={index} className="hover:bg-gray-50">
+                  currentVentes.map((vente, index) => (
+                    <tr key={index} className={index % 2 === 0 ? 'bg-gray-50 hover:bg-green-100 transition' : 'bg-white hover:bg-green-100 transition'}>
                       <td className="px-4 py-2">{vente.dateVente}</td>
                       <td className="px-4 py-2">{vente.responsable}</td>
                       <td className="px-4 py-2">{vente.quantite}</td>
-                      <td className="px-4 py-2">{vente.montantNet}</td>
-                      <td className="px-4 py-2">{vente.montantRecu}</td>
-                      <td className="px-4 py-2">{getModePaiementLabel(vente.modePaiement)}</td>
-                      <td className="px-4 py-2">{vente.frais}</td>
+                      <td className="px-4 py-2 text-right">{vente.montantNet}</td>
+                      <td className="px-4 py-2 text-right">{vente.montantRecu}</td>
+                      <td className="px-4 py-2">
+                        <span className={
+                          vente.modePaiement === 1 ? "bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-bold" :
+                          vente.modePaiement === 2 ? "bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-xs font-bold" :
+                          vente.modePaiement === 3 ? "bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-bold" :
+                          "bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs font-bold"
+                        }>
+                          {getModePaiementLabel(vente.modePaiement)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-right">{vente.frais}</td>
                       <td className="px-4 py-2">{vente.livreur}</td>
                     </tr>
                   ))
@@ -315,6 +424,27 @@ const VentesPage = () => {
               </tbody>
             </table>
           </div>
+          {ventes.length > ventesParPage && (
+            <div className="flex justify-center items-center mt-6 gap-4">
+              <button
+  onClick={() => setPageCourante((p) => Math.max(1, p - 1))}
+  disabled={pageCourante === 1}
+  className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-200 hover:bg-[#00b86b] hover:text-white disabled:opacity-50 text-base font-bold border border-gray-300 shadow transition-all"
+  title="Page précédente"
+>
+  ◀️
+</button>
+<span className="px-4 py-2 rounded-full text-white font-bold bg-[#00b86b] border-2 border-[#00866e] shadow">{pageCourante} / {totalPages}</span>
+<button
+  onClick={() => setPageCourante((p) => Math.min(totalPages, p + 1))}
+  disabled={pageCourante === totalPages}
+  className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-200 hover:bg-[#00b86b] hover:text-white disabled:opacity-50 text-base font-bold border border-gray-300 shadow transition-all"
+  title="Page suivante"
+>
+  ▶️
+</button>
+            </div>
+          )}
         </section>
       </main>
     </div>

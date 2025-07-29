@@ -46,7 +46,7 @@ const Dashboard = () => {
   const statCards = stats ? [
     {
       title: 'Ventes totales',
-      value: `${stats.ventes.total.toLocaleString()} €`,
+      value: `${stats.ventes.total.toLocaleString()} XAF`,
       change: `${stats.ventes.change}%`,
       trend: stats.ventes.change >= 0 ? 'up' : 'down',
       icon: TrendingUp,
@@ -62,7 +62,7 @@ const Dashboard = () => {
     },
     {
       title: 'Fonds disponibles',
-      value: `${stats.fonds.total.toLocaleString()} €`,
+      value: `${stats.fonds.total.toLocaleString()} XAF`,
       change: `${stats.fonds.change}%`,
       trend: stats.fonds.change >= 0 ? 'up' : 'down',
       icon: Wallet,

@@ -103,7 +103,7 @@ export function AppSidebar() {
             </div>
             {!isCollapsed && (
               <div>
-                <h2 className="font-semibold text-[#095228]">K2NService</h2>
+                <h2 className="font-semibold text-[#095228]">K2N Services</h2>
                 <p className="text-xs text-sidebar-foreground/70">Gestion avancée</p>
               </div>
             )}

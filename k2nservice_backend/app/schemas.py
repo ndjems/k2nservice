@@ -1,11 +1,11 @@
 from email.message import EmailMessage
 import smtplib
-from pydantic import BaseModel, EmailStr, Field, constr
+from pydantic import BaseModel, EmailStr, Field, constr, validator
 from datetime import datetime , date
 from typing import Optional
 from .database import SessionLocal
 from enum import Enum
-  
+from decimal import Decimal 
 # ------------------ Login --------------------
 class UserLogin(BaseModel):
     email: EmailStr
@@ -147,12 +147,15 @@ class VenteCreate(BaseModel):
     client: str
     produit: str
     quantite: int
-    prixUnitaire: Decimal
-    montantRecu: Decimal
-    montantNet: Decimal
-    poids: Optional[Decimal] = 0.0
-    modePaiement: int
-    sale_date: date
+    prixUnitaire: Decimal 
+    montantRecu: Decimal 
+    montantNet: Decimal 
+    poids: Optional[Decimal] =0.0
+    modePaiement: int 
+    sale_date: date 
+
+    class Config:
+        allow_population_by_field_name = True
     
     @validator('quantite')
     def validate_quantite(cls, v):
@@ -270,22 +273,39 @@ class Acquisition(AcquisitionBase):
         orm_mode = True
 
         # ------- Rapport ---------
-    
 
 class RapportCreate(BaseModel):
     nom: str
     type: str  # jour, periode, mois, année
-    date_debut: str  # ou datetime selon usage
-    date_fin: str
+    date_debut: date
+    date_fin: date
 
 class Rapport(BaseModel):
     id: int
     nom: str
     type: str
-    date_debut: str
-    date_fin: str
+    date_debut: date
+    date_fin: date
     chemin_fichier: str
     created_at: datetime
 
     class Config:
         orm_mode = True
+
+class StatItem(BaseModel):
+    total: float
+    change: float
+
+class ActivityOut(BaseModel):
+    id: int
+    type: str
+    description: str
+    time: str
+    status: str
+
+class DashboardStats(BaseModel):
+    ventes: StatItem
+    acquisitions: StatItem
+    fonds: StatItem
+    stocks: StatItem
+    activites: list[ActivityOut]

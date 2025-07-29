@@ -153,7 +153,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                     type="tel"
                     value={formData.telephone}
                     onChange={(e) => handleInputChange('telephone', e.target.value)}
-                    placeholder="+33 1 23 45 67 89"
+                    placeholder="+237 668287086"
                   />
                 </div>
                 <div className="space-y-2">
@@ -182,7 +182,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                     id="adresse"
                     value={formData.adresse}
                     onChange={(e) => handleInputChange('adresse', e.target.value)}
-                    placeholder="123 rue de la Paix"
+                    placeholder="marché melen"
                   />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -192,19 +192,19 @@ const handleSubmit = async (e: React.FormEvent) => {
                       id="ville"
                       value={formData.ville}
                       onChange={(e) => handleInputChange('ville', e.target.value)}
-                      placeholder="Paris"
+                      placeholder="Yaoundé"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="codePostal">Code postal</Label>
+                    <Label htmlFor="numéro d'une pièce d'identité">Numéro de la pièce enregistrée</Label>
                     <Input
-                      id="codePostal"
+                      id="cni"
                       value={formData.codePostal}
                       onChange={(e) => handleInputChange('codePostal', e.target.value)}
-                      placeholder="75001"
+                      placeholder="CE03 123456789"
                     />
                   </div>
-                  <div className="space-y-2">
+                  {/* <div className="space-y-2">
                     <Label htmlFor="pays">Pays</Label>
                     <Input
                       id="pays"
@@ -212,7 +212,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                       onChange={(e) => handleInputChange('pays', e.target.value)}
                       placeholder="France"
                     />
-                  </div>
+                  </div> */}
                 </div>
               </div>
 

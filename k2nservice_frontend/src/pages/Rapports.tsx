@@ -18,7 +18,10 @@ import {
   Warehouse,
   Plus,
   Eye,
-  Loader2
+  Loader2,
+  AlertCircle,
+  CheckCircle,
+  Clock
 } from 'lucide-react';
 
 const Rapports = () => {
@@ -28,32 +31,38 @@ const Rapports = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState('mois');
   const [selectedCategory, setSelectedCategory] = useState('tous');
+  const [error, setError] = useState(null);
+  const [selectedRapport, setSelectedRapport] = useState(null);
+  const [showRapportModal, setShowRapportModal] = useState(false);
 
-  // États pour les statistiques
+  // États pour les statistiques avec montants
   const [stats, setStats] = useState({
-    acquisitions: 0,
-    sorties: 0,
-    stocks: 0,
-    ventes: 0,
-    fonds: 0
+    acquisitions: { count: 0, amount: 0 },
+    sorties: { count: 0, amount: 0 },
+    stocks: { count: 0, value: 0 },
+    ventes: { count: 0, amount: 0 },
+    fonds: { count: 0, amount: 0 }
   });
 
   useEffect(() => {
     fetchRapports();
     fetchStats();
-  }, []);
+  }, [selectedPeriod]);
 
   const fetchRapports = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('http://localhost:9001/api/sales/rapport/');
+      setError(null);
+      const response = await fetch('http://localhost:9001/rapport/');
       if (!response.ok) {
-        throw new Error('Erreur lors de la récupération des rapports');
+        throw new Error(`Erreur ${response.status}: ${response.statusText}`);
       }
       const data = await response.json();
-      setRapports(data);
+      setRapports(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Erreur:', error);
+      setError('Impossible de charger les rapports');
+      setRapports([]);
     } finally {
       setIsLoading(false);
     }
@@ -61,27 +70,45 @@ const Rapports = () => {
 
   const fetchStats = async () => {
     try {
-      // Récupération des statistiques depuis différentes APIs
+      const dateDebut = getDateDebut();
+      const dateFin = new Date().toISOString();
+      
+      // Récupération des statistiques avec montants
       const [acquisitionsRes, sortiesRes, stocksRes, ventesRes, fondsRes] = await Promise.all([
-        fetch('http://localhost:9001/acquisitions/stats/'),
-        fetch('http://localhost:9001/sorties/stats/'),
-        fetch('http://localhost:9001/stocks/stats/'),
-        fetch('http://localhost:9001/sales/stats/'),
-        fetch('http://localhost:9001/fonds/stats/')
+        fetch(`http://localhost:9001/stats/acquisitions?dateDebut=${dateDebut}&dateFin=${dateFin}`),
+        fetch(`http://localhost:9001/stats/sorties?dateDebut=${dateDebut}&dateFin=${dateFin}`),
+        fetch(`http://localhost:9001/stats/stocks`),
+        fetch(`http://localhost:9001/stats/sales?dateDebut=${dateDebut}&dateFin=${dateFin}`),
+        fetch(`http://localhost:9001/stats/fonds`)
       ]);
 
-      const acquisitions = await acquisitionsRes.json();
-      const sorties = await sortiesRes.json();
-      const stocks = await stocksRes.json();
-      const ventes = await ventesRes.json();
-      const fonds = await fondsRes.json();
+      const acquisitions = acquisitionsRes.ok ? await acquisitionsRes.json() : { count: 0, amount: 0 };
+      const sorties = sortiesRes.ok ? await sortiesRes.json() : { count: 0, amount: 0 };
+      const stocks = stocksRes.ok ? await stocksRes.json() : { count: 0, value: 0 };
+      const ventes = ventesRes.ok ? await ventesRes.json() : { count: 0, amount: 0 };
+      const fonds = fondsRes.ok ? await fondsRes.json() : { count: 0, amount: 0 };
 
       setStats({
-        acquisitions: acquisitions.total || 0,
-        sorties: sorties.total || 0,
-        stocks: stocks.total || 0,
-        ventes: ventes.total || 0,
-        fonds: fonds.total || 0
+        acquisitions: { 
+          count: acquisitions.count || acquisitions.total || 0, 
+          amount: acquisitions.amount || acquisitions.montant || 0 
+        },
+        sorties: { 
+          count: sorties.count || sorties.total || 0, 
+          amount: sorties.amount || sorties.montant || 0 
+        },
+        stocks: { 
+          count: stocks.count || stocks.total || 0, 
+          value: stocks.value || stocks.valeur || 0 
+        },
+        ventes: { 
+          count: ventes.count || ventes.total || 0, 
+          amount: ventes.amount || ventes.montant || 0 
+        },
+        fonds: { 
+          count: 1, 
+          amount: fonds.amount || fonds.solde || fonds.total || 0 
+        }
       });
     } catch (error) {
       console.error('Erreur lors de la récupération des statistiques:', error);
@@ -91,30 +118,57 @@ const Rapports = () => {
   const generateRapport = async (type, category) => {
     try {
       setIsGenerating(true);
-      const response = await fetch('http://localhost:9001/rapport/generate/', {
+      setError(null);
+      
+      const requestBody = {
+        type,
+        category,
+        period: selectedPeriod,
+        dateDebut: getDateDebut(),
+        dateFin: new Date().toISOString(),
+        nom: `Rapport ${category} - ${selectedPeriod} - ${new Date().toLocaleDateString('fr-FR')}`
+      };
+
+      const response = await fetch('http://localhost:9001/rapport/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          type,
-          category,
-          period: selectedPeriod,
-          dateDebut: getDateDebut(),
-          dateFin: new Date().toISOString()
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
-        throw new Error('Erreur lors de la génération du rapport');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Erreur ${response.status}: ${response.statusText}`);
       }
 
       const newRapport = await response.json();
       setRapports(prev => [newRapport, ...prev]);
+      
+      // Afficher une notification de succès (vous pouvez utiliser une bibliothèque de toast)
+      console.log('Rapport généré avec succès:', newRapport);
+      
     } catch (error) {
       console.error('Erreur:', error);
+      setError(`Erreur lors de la génération du rapport: ${error.message}`);
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const viewRapport = async (rapportId) => {
+    try {
+      const response = await fetch(`http://localhost:9001/rapport/${rapportId}/`);
+      if (!response.ok) {
+        throw new Error('Erreur lors de la récupération du rapport');
+      }
+      
+      const rapportData = await response.json();
+      setSelectedRapport(rapportData);
+      setShowRapportModal(true);
+    } catch (error) {
+      console.error('Erreur:', error);
+      setError('Impossible d\'afficher le rapport');
     }
   };
 
@@ -122,21 +176,33 @@ const Rapports = () => {
     try {
       const response = await fetch(`http://localhost:9001/rapport/${rapportId}/download/`);
       if (!response.ok) {
-        throw new Error('Erreur lors du téléchargement');
+        throw new Error(`Erreur ${response.status}: Impossible de télécharger le rapport`);
       }
       
+      // Vérifier le type de contenu
+      const contentType = response.headers.get('content-type');
       const blob = await response.blob();
+      
+      // Déterminer l'extension du fichier
+      let extension = '.txt';
+      if (contentType?.includes('pdf')) extension = '.pdf';
+      else if (contentType?.includes('excel') || contentType?.includes('spreadsheet')) extension = '.xlsx';
+      else if (contentType?.includes('csv')) extension = '.csv';
+      
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.style.display = 'none';
       a.href = url;
-      a.download = filename;
+      a.download = filename.includes('.') ? filename : `${filename}${extension}`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+      
+      console.log('Téléchargement terminé:', a.download);
     } catch (error) {
       console.error('Erreur:', error);
+      setError(`Erreur lors du téléchargement: ${error.message}`);
     }
   };
 
@@ -160,16 +226,48 @@ const Rapports = () => {
     }
   };
 
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: 'XAF'
+    }).format(amount || 0);
+  };
+
   const getStatusColor = (status) => {
-    switch (status) {
-      case 'Terminé':
+    switch (status?.toLowerCase()) {
+      case 'terminé':
+      case 'complete':
+      case 'success':
         return 'bg-green-100 text-green-800 border-green-200';
-      case 'En cours':
+      case 'en cours':
+      case 'processing':
+      case 'pending':
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'Erreur':
+      case 'erreur':
+      case 'error':
+      case 'failed':
         return 'bg-red-100 text-red-800 border-red-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'terminé':
+      case 'complete':
+      case 'success':
+        return <CheckCircle className="w-4 h-4" />;
+      case 'en cours':
+      case 'processing':
+      case 'pending':
+        return <Clock className="w-4 h-4" />;
+      case 'erreur':
+      case 'error':
+      case 'failed':
+        return <AlertCircle className="w-4 h-4" />;
+      default:
+        return <FileText className="w-4 h-4" />;
     }
   };
 
@@ -234,7 +332,7 @@ const Rapports = () => {
   ];
 
   const filteredRapports = rapports.filter(rapport => {
-    const matchesSearch = rapport.nom.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = rapport.nom?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'tous' || rapport.categorie === selectedCategory;
     return matchesSearch && matchesCategory;
   });
@@ -254,6 +352,13 @@ const Rapports = () => {
             </p>
           </div>
           <div className="flex gap-2">
+            <input
+              type="text"
+              placeholder="Rechercher un rapport..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg bg-white"
+            />
             <select 
               value={selectedCategory} 
               onChange={(e) => setSelectedCategory(e.target.value)}
@@ -279,51 +384,79 @@ const Rapports = () => {
           </div>
         </div>
 
-        {/* Statistiques globales */}
+        {/* Messages d'erreur */}
+        {error && (
+          <Card className="mb-6 border-red-200 bg-red-50">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-red-800">
+                <AlertCircle className="w-5 h-5" />
+                <p>{error}</p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setError(null)}
+                  className="ml-auto"
+                >
+                  Fermer
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Statistiques globales avec montants */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
           <Card className="border-blue-200 bg-blue-50">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-blue-800">Acquisitions</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-blue-900">{stats.acquisitions}</div>
+              <div className="text-2xl font-bold text-blue-900">{stats.acquisitions.count}</div>
+              <p className="text-lg font-semibold text-blue-800">{formatCurrency(stats.acquisitions.amount)}</p>
               <p className="text-xs text-blue-600">Total période</p>
             </CardContent>
           </Card>
+          
           <Card className="border-red-200 bg-red-50">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-red-800">Sorties</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-900">{stats.sorties}</div>
+              <div className="text-2xl font-bold text-red-900">{stats.sorties.count}</div>
+              <p className="text-lg font-semibold text-red-800">{formatCurrency(stats.sorties.amount)}</p>
               <p className="text-xs text-red-600">Total période</p>
             </CardContent>
           </Card>
+          
           <Card className="border-purple-200 bg-purple-50">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-purple-800">Stocks</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-purple-900">{stats.stocks}</div>
-              <p className="text-xs text-purple-600">Articles en stock</p>
+              <div className="text-2xl font-bold text-purple-900">{stats.stocks.count}</div>
+              <p className="text-lg font-semibold text-purple-800">{formatCurrency(stats.stocks.value)}</p>
+              <p className="text-xs text-purple-600">Valeur totale</p>
             </CardContent>
           </Card>
+          
           <Card className="border-green-200 bg-green-50">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-green-800">Ventes</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-900">{stats.ventes}</div>
+              <div className="text-2xl font-bold text-green-900">{stats.ventes.count}</div>
+              <p className="text-lg font-semibold text-green-800">{formatCurrency(stats.ventes.amount)}</p>
               <p className="text-xs text-green-600">Total période</p>
             </CardContent>
           </Card>
+          
           <Card className="border-yellow-200 bg-yellow-50">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-yellow-800">Fonds</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-yellow-900">{stats.fonds} €</div>
-              <p className="text-xs text-yellow-600">Trésorerie</p>
+              <div className="text-2xl font-bold text-yellow-900">{formatCurrency(stats.fonds.amount)}</div>
+              <p className="text-xs text-yellow-600">Trésorerie actuelle</p>
             </CardContent>
           </Card>
         </div>
@@ -333,7 +466,7 @@ const Rapports = () => {
           <CardHeader>
             <CardTitle>Créer un nouveau rapport</CardTitle>
             <CardDescription>
-              Sélectionnez le type de rapport que vous souhaitez générer pour la période sélectionnée
+              Sélectionnez le type de rapport que vous souhaitez générer pour la période sélectionnée ({selectedPeriod})
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -341,21 +474,21 @@ const Rapports = () => {
               {rapportTypes.map((type) => {
                 const IconComponent = type.icon;
                 return (
-                  <Card key={type.id} className={`cursor-pointer hover:shadow-md transition-shadow border-${type.color}-200 bg-${type.color}-50`}>
+                  <Card key={type.id} className="cursor-pointer hover:shadow-md transition-shadow border-gray-200">
                     <CardContent className="p-4">
                       <div className="flex flex-col items-center text-center gap-3">
                         <div className={`w-12 h-12 bg-${type.color}-100 rounded-lg flex items-center justify-center`}>
                           <IconComponent className={`w-6 h-6 text-${type.color}-600`} />
                         </div>
                         <div>
-                          <h3 className={`font-medium text-${type.color}-900`}>{type.title}</h3>
-                          <p className={`text-xs text-${type.color}-600 mt-1`}>{type.description}</p>
+                          <h3 className="font-medium text-gray-900">{type.title}</h3>
+                          <p className="text-xs text-gray-600 mt-1">{type.description}</p>
                         </div>
                         <Button
                           size="sm"
                           onClick={() => generateRapport(type.id, type.category)}
                           disabled={isGenerating}
-                          className={`w-full bg-${type.color}-600 hover:bg-${type.color}-700`}
+                          className="w-full"
                         >
                           {isGenerating ? (
                             <>
@@ -395,7 +528,12 @@ const Rapports = () => {
             ) : filteredRapports.length === 0 ? (
               <div className="text-center py-8">
                 <FileText className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                <p className="text-gray-500">Aucun rapport trouvé</p>
+                <p className="text-gray-500">
+                  {searchQuery || selectedCategory !== 'tous' 
+                    ? 'Aucun rapport trouvé avec ces critères' 
+                    : 'Aucun rapport trouvé'
+                  }
+                </p>
                 <p className="text-sm text-gray-400">Créez votre premier rapport ci-dessus</p>
               </div>
             ) : (
@@ -404,7 +542,7 @@ const Rapports = () => {
                   <div key={rapport.id} className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200 hover:shadow-sm transition-shadow">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                        <FileText className="w-6 h-6 text-gray-600" />
+                        {getStatusIcon(rapport.status)}
                       </div>
                       <div>
                         <h3 className="font-medium text-gray-900">{rapport.nom}</h3>
@@ -417,7 +555,13 @@ const Rapports = () => {
                           </span>
                           <span className="text-xs text-gray-400">•</span>
                           <span className="text-xs text-gray-500">
-                            {new Date(rapport.dateCreation).toLocaleDateString('fr-FR')}
+                            {new Date(rapport.dateCreation).toLocaleDateString('fr-FR', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
                           </span>
                         </div>
                       </div>
@@ -428,7 +572,7 @@ const Rapports = () => {
                           {rapport.status}
                         </Badge>
                         <p className="text-xs text-gray-500 mt-1">
-                          {rapport.taille}
+                          {rapport.taille || 'N/A'}
                         </p>
                       </div>
                       <div className="flex gap-2">
@@ -436,7 +580,8 @@ const Rapports = () => {
                           variant="outline"
                           size="sm"
                           className="gap-2"
-                          disabled={rapport.status !== 'Terminé'}
+                          disabled={rapport.status?.toLowerCase() !== 'terminé'}
+                          onClick={() => viewRapport(rapport.id)}
                         >
                           <Eye className="w-4 h-4" />
                           Voir
@@ -445,7 +590,7 @@ const Rapports = () => {
                           variant="outline"
                           size="sm"
                           className="gap-2"
-                          disabled={rapport.status !== 'Terminé'}
+                          disabled={rapport.status?.toLowerCase() !== 'terminé'}
                           onClick={() => downloadRapport(rapport.id, rapport.nom)}
                         >
                           <Download className="w-4 h-4" />
@@ -459,6 +604,53 @@ const Rapports = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Modal de visualisation du rapport */}
+        {showRapportModal && selectedRapport && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-xl font-semibold">{selectedRapport.nom}</h2>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowRapportModal(false)}
+                  >
+                    Fermer
+                  </Button>
+                </div>
+              </div>
+              <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+                {/* Affichage du contenu du rapport */}
+                <div className="prose max-w-none">
+                  {selectedRapport.contenu ? (
+                    <pre className="whitespace-pre-wrap bg-gray-50 p-4 rounded-lg">
+                      {selectedRapport.contenu}
+                    </pre>
+                  ) : selectedRapport.data ? (
+                    <div>
+                      <h3 className="text-lg font-medium mb-4">Données du rapport</h3>
+                      <pre className="whitespace-pre-wrap bg-gray-50 p-4 rounded-lg text-sm">
+                        {JSON.stringify(selectedRapport.data, null, 2)}
+                      </pre>
+                    </div>
+                  ) : (
+                    <p className="text-gray-500">Contenu du rapport non disponible</p>
+                  )}
+                </div>
+              </div>
+              <div className="p-4 border-t border-gray-200 flex justify-end gap-2">
+                <Button 
+                  variant="outline"
+                  onClick={() => downloadRapport(selectedRapport.id, selectedRapport.nom)}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Télécharger
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

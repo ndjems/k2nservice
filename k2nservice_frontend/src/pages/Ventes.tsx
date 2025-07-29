@@ -146,6 +146,7 @@ const Ventes = () => {
           quantity: parseInt(formData.quantite),
           unitPrice: parseFloat(formData.prixUnitaire),
           totalPrice: parseInt(formData.quantite) * parseFloat(formData.prixUnitaire),
+          poids: parseFloat(formData.poids || 0),
           dateVente: formData.dateVente,
           date: formData.dateVente, // Compatibilité
           status: 'Confirmé',
@@ -280,6 +281,7 @@ const Ventes = () => {
                   <th className="text-left p-2 text-green-800 font-semibold">Produit/Service</th>
                   <th className="text-left p-2 text-green-800 font-semibold">Responsable</th>
                   <th className="text-left p-2 text-green-800 font-semibold">Quantité</th>
+                  <th className="text-left p-2 text-green-800 font-semibold">Poids (kg)</th>
                   <th className="text-left p-2 text-green-800 font-semibold">Prix unitaire</th>
                   <th className="text-left p-2 text-green-800 font-semibold">Total</th>
                   <th className="text-left p-2 text-green-800 font-semibold">Date</th>
@@ -294,6 +296,9 @@ const Ventes = () => {
                     <td className="p-2">{vente.produit}</td>
                     <td className="p-2 text-sm text-gray-600">{vente.responsable}</td>
                     <td className="p-2">{vente.quantity || vente.quantite}</td>
+                    <td className="p-2 text-sm text-gray-600">
+                      {vente.poids ? `${vente.poids} kg` : '-'}
+                    </td>
                     <td className="p-2">{(vente.unitPrice || vente.prixUnitaire || 0).toLocaleString()} XAF</td>
                     <td className="p-2 font-medium">{(vente.totalPrice || vente.montantRecu || 0).toLocaleString()} XAF</td>
                     <td className="p-2">{new Date(vente.dateVente || vente.date).toLocaleDateString()}</td>
